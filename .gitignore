@@ -30,3 +30,6 @@ Thumbs.db
 
 #Retail Agent
 retail_agent/.adk
+
+#DB
+database/*.db
