@@ -7,8 +7,12 @@ from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 import mcp.types as types
 from mcp_server.database import DB_PATH, init_db
-
+from mcp.server.lowlevel.server import NotificationOptions
 app = Server("retail-mcp-server")
+
+def log(msg: str):
+    """Safe logging for MCP server — must use stderr, never stdout."""
+    print(msg, file=sys.stderr)
 
 # ─────────────────────────────────────────────
 # TOOL DEFINITIONS
@@ -333,7 +337,7 @@ async def main():
                 server_name="retail-mcp-server",
                 server_version="0.1.0",
                 capabilities=app.get_capabilities(
-                    notification_options=None,
+                    notification_options=NotificationOptions(),
                     experimental_capabilities={}
                 )
             )
