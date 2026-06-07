@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+#Retail Agent
+retail_agent/.adk
