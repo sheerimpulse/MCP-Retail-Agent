@@ -9,6 +9,7 @@ import mcp.types as types
 from mcp_server.database import DB_PATH, init_db
 from mcp.server.lowlevel.server import NotificationOptions
 app = Server("retail-mcp-server")
+import sys
 
 def log(msg: str):
     """Safe logging for MCP server — must use stderr, never stdout."""
@@ -31,6 +32,41 @@ TOOLS = [
                 }
             },
             "required": ["query"]
+        }
+    ),
+    types.Tool(
+        name="update_customer",
+        description="Update a customer profile by customer id with the details provided in the params. Can only be called after get_customer.",
+        inputSchema={
+            "type":"object",
+            "properties": {
+                "customer_id": {
+                    "type": "integer",
+                    "description": "Customer ID returned by get_customer"
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "A brief summary about the customer and any last notes or updates"
+                },
+                "preferences": {
+                    "type": "object",
+                    "properties": {
+                        "contact": {
+                            "type": "string",
+                            "description": "Preferred contact method for the customer"
+                        },
+                        "notifications": {
+                            "type": "string",
+                            "description": "Preferred notification medium for the customer"
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Preferred language for the customer"
+                        }
+                    }
+                }
+            },
+            "required": ["customer_id"]
         }
     ),
     types.Tool(
@@ -283,6 +319,10 @@ async def handle_escalate_to_human(customer_id: int, reason: str, priority: str)
         "message": f"Case escalated to human agent. Ticket {ticket_id} created with {priority} priority."
     }
 
+async def handle_update_customer(customer_id: int, notes: str, preferences:dict):
+    log(f'IN HANDLE_UPDATE_CUSTOMER {customer_id, notes, preferences}')
+    pass
+
 # ─────────────────────────────────────────────
 # CALL TOOL HANDLER
 # ─────────────────────────────────────────────
@@ -297,6 +337,13 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
             result = await handle_lookup_order(
                 customer_id=arguments["customer_id"],
                 order_number=arguments.get("order_number")
+            )
+            
+        elif name == "update_customer":
+            result = await handle_update_customer(
+                customer_id=arguments["customer_id"],
+                notes=arguments["notes"],
+                preferences=arguments["preferences"]
             )
 
         elif name == "process_refund":

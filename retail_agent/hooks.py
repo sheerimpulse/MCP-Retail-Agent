@@ -5,6 +5,8 @@ from typing import Any, Optional
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.tools import BaseTool
 
+from retail_agent.memory import save_memory, search_memory, format_memories_for_prompt
+
 REFUND_THRESHOLD = 500.00
 
 _session_tool_history: dict[str, set] = {}
@@ -25,6 +27,7 @@ def _log(hook: str, tool: str, decision: str, reason: str) -> dict:
     print(f"\n[{hook}] tool={tool} | decision={decision} | reason={reason}",
           file=sys.stderr)
     return entry
+
 
 # ─────────────────────────────────────────────
 # PRE TOOL USE
@@ -75,7 +78,32 @@ def pre_tool_use(
                 "trace": log
             }
 
-    # ── 4. Allow ──
+    # ── 4. Inject past memories before get_customer ──
+    # We search mem0 using the customer_id (or email) the agent is about to look up
+    # and surface any stored context into the session state so the agent can use it.
+    if tool_name == "get_customer":
+        # The MCP tool typically receives either customer_id or email
+        lookup_key = args.get("customer_id") or args.get("email") or args.get("query", "")
+        if lookup_key:
+            memories = search_memory(
+                query=f"customer profile and history for {lookup_key}",
+                user_id=str(lookup_key),
+                limit=5,
+            )
+            if memories:
+                memory_block = format_memories_for_prompt(memories)
+                # Inject into session state so the LLM sees it as prior context
+                try:
+                    tool_context.state["mem0_customer_context"] = memory_block
+                    print(
+                        f"[PreToolUse] Injected {len(memories)} memories into session state "
+                        f"for {lookup_key}",
+                        file=sys.stderr,
+                    )
+                except Exception as exc:
+                    print(f"[PreToolUse] Could not write to session state: {exc}", file=sys.stderr)
+
+    # ── 5. Allow ──
     _log("PreToolUse", tool_name, "allowed", f"{tool_name} approved.")
     return None
 
@@ -135,6 +163,31 @@ def post_tool_use(
             }
             print(f"[PostToolUse] get_customer → cleaned profile for {customer.get('name')}",
                   file=sys.stderr)
+
+            # ── mem0: save customer profile facts ──
+            customer_id = str(customer.get("id", ""))
+            if customer_id:
+                mem_facts = [
+                    f"Customer name: {customer.get('name')}",
+                    f"Segment: {customer.get('segment', 'regular')}",
+                    f"Contact preference: {customer.get('preferences', {}).get('contact', 'email')}",
+                    f"Email: {customer.get('email')}",
+                    f"Phone: {customer.get('phone')}",
+                ]
+                if customer.get("notes"):
+                    mem_facts.append(f"Notes: {customer.get('notes')}")
+                support_history = customer.get("support_history", [])
+                if support_history:
+                    mem_facts.append(
+                        f"Support history: {json.dumps(support_history)}"
+                    )
+
+                save_memory(
+                    messages=[{"role": "user", "content": " | ".join(mem_facts)}],
+                    user_id=customer_id,
+                    metadata={"source": "get_customer", "event": "profile_loaded"},
+                )
+
             return cleaned
 
     # ── lookup_order ──
@@ -163,6 +216,30 @@ def post_tool_use(
 
             print(f"[PostToolUse] lookup_order → {len(cleaned_orders)} orders cleaned",
                   file=sys.stderr)
+
+            # ── mem0: save order history snapshot ──
+            customer_id = str(tool_response.get("customer_id", ""))
+            if customer_id and cleaned_orders:
+                order_facts = []
+                for o in cleaned_orders:
+                    items_str = ", ".join(
+                        i.get("item", "item") for i in o.get("items", [])
+                    )
+                    order_facts.append(
+                        f"Order {o['order_number']}: {items_str}, "
+                        f"status={o['status']}, amount=${o.get('total_amount', 0):.2f}, "
+                        f"refund_eligible={o['refund_eligible']}"
+                    )
+
+                save_memory(
+                    messages=[{
+                        "role": "user",
+                        "content": "Recent orders: " + " | ".join(order_facts)
+                    }],
+                    user_id=customer_id,
+                    metadata={"source": "lookup_order", "event": "orders_viewed"},
+                )
+
             return {
                 "status": "success",
                 "customer_name": tool_response.get("customer_name"),
@@ -183,6 +260,28 @@ def post_tool_use(
                 )
             print(f"[PostToolUse] process_refund → {tool_response.get('status')}",
                   file=sys.stderr)
+
+            # ── mem0: record refund event ──
+            customer_id = str(args.get("customer_id", ""))
+            order_number = args.get("order_number", "unknown")
+            if customer_id:
+                status = tool_response.get("status", "unknown")
+                amount = tool_response.get("amount_refunded", args.get("amount", 0))
+                refund_fact = (
+                    f"Refund {status} for order {order_number}, "
+                    f"amount=${float(amount):.2f}, reason={args.get('reason', 'N/A')}"
+                )
+                save_memory(
+                    messages=[{"role": "user", "content": refund_fact}],
+                    user_id=customer_id,
+                    metadata={
+                        "source": "process_refund",
+                        "event": "refund_processed",
+                        "order_number": order_number,
+                        "status": status,
+                    },
+                )
+
             return tool_response
 
     # ── escalate_to_human ──
@@ -195,6 +294,28 @@ def post_tool_use(
             )
             print(f"[PostToolUse] escalate_to_human → {tool_response.get('ticket_id')}",
                   file=sys.stderr)
+
+            # ── mem0: record escalation event ──
+            customer_id = str(args.get("customer_id", ""))
+            if customer_id:
+                ticket_id = tool_response.get("ticket_id", "unknown")
+                priority = tool_response.get("priority", "normal")
+                reason = args.get("reason", "N/A")
+                escalation_fact = (
+                    f"Escalated to human agent: ticket={ticket_id}, "
+                    f"priority={priority}, reason={reason}"
+                )
+                save_memory(
+                    messages=[{"role": "user", "content": escalation_fact}],
+                    user_id=customer_id,
+                    metadata={
+                        "source": "escalate_to_human",
+                        "event": "escalation_created",
+                        "ticket_id": ticket_id,
+                        "priority": priority,
+                    },
+                )
+
             return tool_response
 
     return None
