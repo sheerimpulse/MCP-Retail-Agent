@@ -11,7 +11,6 @@ CUSTOMERS = [
         "phone": "+92-300-1234567",
         "segment": "vip",
         "preferences": json.dumps({"contact": "whatsapp", "notifications": "whatsapp", "language": "en"}),
-        "notes": "High-value customer. Prefers WhatsApp for all updates. Has spent over $5,000 lifetime."
     },
     {
         "name": "Aisha Khan",
@@ -19,7 +18,6 @@ CUSTOMERS = [
         "phone": "+92-321-9876543",
         "segment": "vip",
         "preferences": json.dumps({"contact": "email", "notifications": "email", "language": "en"}),
-        "notes": "VIP customer. Had a delivery complaint in Jan 2025 — package arrived damaged. Was offered store credit and accepted. Prefers email communication."
     },
     {
         "name": "James Miller",
@@ -27,7 +25,6 @@ CUSTOMERS = [
         "phone": "+1-555-0101",
         "segment": "regular",
         "preferences": json.dumps({"contact": "sms", "notifications": "sms", "language": "en"}),
-        "notes": "Regular customer. Prefers SMS. No major complaints on record."
     },
     {
         "name": "Fatima Zahra",
@@ -35,7 +32,6 @@ CUSTOMERS = [
         "phone": "+212-600-123456",
         "segment": "new",
         "preferences": json.dumps({"contact": "email", "notifications": "email", "language": "fr"}),
-        "notes": "New customer. First purchase in May 2025. No support history yet."
     },
     {
         "name": "Carlos Rivera",
@@ -43,7 +39,6 @@ CUSTOMERS = [
         "phone": "+1-555-0202",
         "segment": "regular",
         "preferences": json.dumps({"contact": "phone", "notifications": "email", "language": "es"}),
-        "notes": "Regular customer. Called in twice about delayed shipments. Prefers phone calls for urgent issues."
     },
     {
         "name": "Priya Patel",
@@ -51,7 +46,6 @@ CUSTOMERS = [
         "phone": "+91-98765-43210",
         "segment": "vip",
         "preferences": json.dumps({"contact": "email", "notifications": "email", "language": "en"}),
-        "notes": "VIP. Priority handling flag set. Previously escalated a refund case — resolved with full refund. Sensitive to delays."
     },
     {
         "name": "Omar Siddiqui",
@@ -59,7 +53,6 @@ CUSTOMERS = [
         "phone": "+92-333-5556677",
         "segment": "regular",
         "preferences": json.dumps({"contact": "whatsapp", "notifications": "whatsapp", "language": "en"}),
-        "notes": "Regular customer. Accepted store credit twice instead of refunds. Loyal buyer of electronics."
     },
     {
         "name": "Emily Chen",
@@ -67,7 +60,6 @@ CUSTOMERS = [
         "phone": "+1-555-0303",
         "segment": "new",
         "preferences": json.dumps({"contact": "email", "notifications": "email", "language": "en"}),
-        "notes": "New customer. Signed up June 2025. No support history."
     },
     {
         "name": "David Okonkwo",
@@ -75,7 +67,6 @@ CUSTOMERS = [
         "phone": "+234-802-3456789",
         "segment": "regular",
         "preferences": json.dumps({"contact": "sms", "notifications": "sms", "language": "en"}),
-        "notes": "Regular customer. Filed a fraud complaint in March 2025 — resolved. Account flagged for extra verification on large orders."
     },
     {
         "name": "Sofia Rossi",
@@ -83,7 +74,6 @@ CUSTOMERS = [
         "phone": "+39-333-1234567",
         "segment": "vip",
         "preferences": json.dumps({"contact": "email", "notifications": "email", "language": "it"}),
-        "notes": "VIP customer based in Italy. Buys luxury items frequently. Has never filed a complaint. Eligible for priority refunds."
     },
 ]
 
@@ -189,8 +179,8 @@ async def seed():
         # Insert customers
         for c in CUSTOMERS:
             await db.execute(
-                "INSERT INTO customers (name, email, phone, segment, preferences, notes) VALUES (?,?,?,?,?,?)",
-                (c["name"], c["email"], c["phone"], c["segment"], c["preferences"], c["notes"])
+                "INSERT INTO customers (name, email, phone, segment, preferences) VALUES (?,?,?,?,?)",
+                (c["name"], c["email"], c["phone"], c["segment"], c["preferences"])
             )
 
         # Insert orders

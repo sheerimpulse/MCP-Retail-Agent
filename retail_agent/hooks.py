@@ -11,6 +11,10 @@ REFUND_THRESHOLD = 500.00
 
 _session_tool_history: dict[str, set] = {}
 
+def log(msg: str):
+    """Safe logging for Memory — must use stderr, never stdout."""
+    print(msg, file=sys.stderr)
+
 def _get_history(ctx: CallbackContext) -> set:
     sid = ctx.session.id
     if sid not in _session_tool_history:
@@ -121,10 +125,18 @@ def post_tool_use(
     tool_name = tool.name
     history = _get_history(tool_context)
     history.add(tool_name)
+    
+    log(f'POST TOOL USE {tool},{tool.name}, {tool_response}')
 
     # Normalize MCP response to dict
     parsed = tool_response
-    if isinstance(parsed, list):
+    if isinstance(parsed, dict) and "content" in parsed:
+        try:
+            text = parsed["content"][0]["text"]
+            parsed = json.loads(text)
+        except Exception:
+            pass
+    elif isinstance(parsed, list):
         for item in parsed:
             text = getattr(item, "text", None)
             if text:
@@ -154,7 +166,6 @@ def post_tool_use(
                 "segment": customer.get("segment"),
                 "preferences": customer.get("preferences", {}),
                 "support_history": customer.get("support_history", []),
-                "notes": customer.get("notes"),
                 "safe_for_customer": True,
                 "summary": (
                     f"{customer.get('name')} is a {customer.get('segment', 'regular')} customer. "
@@ -174,8 +185,6 @@ def post_tool_use(
                     f"Email: {customer.get('email')}",
                     f"Phone: {customer.get('phone')}",
                 ]
-                if customer.get("notes"):
-                    mem_facts.append(f"Notes: {customer.get('notes')}")
                 support_history = customer.get("support_history", [])
                 if support_history:
                     mem_facts.append(
@@ -189,6 +198,10 @@ def post_tool_use(
                 )
 
             return cleaned
+        
+    if tool_name == "update_customer":
+        if isinstance(tool_response, dict) and tool_response.get("status") == "success":
+            log(f'POST TOOL USE {tool_response}')
 
     # ── lookup_order ──
     if tool_name == "lookup_order":

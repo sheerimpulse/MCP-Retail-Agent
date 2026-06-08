@@ -36,17 +36,13 @@ TOOLS = [
     ),
     types.Tool(
         name="update_customer",
-        description="Update a customer profile by customer id with the details provided in the params. Can only be called after get_customer.",
+        description="Update a customer. Requires customer_id from get_customer.",
         inputSchema={
             "type":"object",
             "properties": {
                 "customer_id": {
                     "type": "integer",
                     "description": "Customer ID returned by get_customer"
-                },
-                "notes": {
-                    "type": "string",
-                    "description": "A brief summary about the customer and any last notes or updates"
                 },
                 "preferences": {
                     "type": "object",
@@ -64,6 +60,10 @@ TOOLS = [
                             "description": "Preferred language for the customer"
                         }
                     }
+                },
+                "update_summary": {
+                    "type": "string",
+                    "description": "A brief summary over what is updating to be stored as a story point for future context on what was updated."
                 }
             },
             "required": ["customer_id"]
@@ -319,8 +319,14 @@ async def handle_escalate_to_human(customer_id: int, reason: str, priority: str)
         "message": f"Case escalated to human agent. Ticket {ticket_id} created with {priority} priority."
     }
 
-async def handle_update_customer(customer_id: int, notes: str, preferences:dict):
-    log(f'IN HANDLE_UPDATE_CUSTOMER {customer_id, notes, preferences}')
+async def handle_update_customer(customer_id: int, preferences:dict, update_summary:str):
+    log(f'IN HANDLE_UPDATE_CUSTOMER {customer_id, preferences, update_summary}')
+    return {
+        "status": "success",
+        "customer_id": customer_id,
+        "preferences": preferences,
+        "update_summary": update_summary
+    }
     pass
 
 # ─────────────────────────────────────────────
@@ -342,8 +348,8 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         elif name == "update_customer":
             result = await handle_update_customer(
                 customer_id=arguments["customer_id"],
-                notes=arguments["notes"],
-                preferences=arguments["preferences"]
+                preferences=arguments["preferences"],
+                update_summary=arguments["update_summary"]
             )
 
         elif name == "process_refund":

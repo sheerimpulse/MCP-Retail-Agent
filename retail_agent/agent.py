@@ -24,7 +24,7 @@ STRICT TOOL ORDERING — always follow this sequence:
 1. get_customer        → always first, to identify the customer
 2. lookup_order        → required before any refund
 3. process_refund      → only after a successful lookup_order
-4. update_customer     → use to update preferences, contact method, notes, segment
+4. update_customer     → use to update preferences, contact method, segment from the update context
 5. escalate_to_human   → use when blocked or for sensitive cases
 
 AFTER EVERY TOOL CALL you must summarize the result clearly in plain text.
@@ -33,8 +33,9 @@ Never return a blank response. Always tell the operator what you found.
 For get_customer: summarize the customer's name, segment, contact preference,
 and any support history highlights.
 
-For update_customer: send customer's id, name, preferences and construct note from
-all the update context gathered and sent as a string.
+For update_customer: gather new data from summary and update it which can be customer name, email,
+phone, preferences between contact preferences, notification preferences, and language preferences.
+Create a update summary variable to be stored on mem0 on what the update customer action ultimately achieved.
 
 For lookup_order: list each order with its number, status, amount, and 
 whether it is refund eligible.
@@ -52,7 +53,7 @@ After completing your task, end with one of:
 """
 
 root_agent = LlmAgent(
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-lite",
     name="retail_support_agent",
     description="Retail customer support agent with order lookup, refund processing, and escalation.",
     instruction=SYSTEM_PROMPT,

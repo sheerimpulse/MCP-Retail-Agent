@@ -13,8 +13,7 @@ async def init_db():
                 email       TEXT UNIQUE NOT NULL,
                 phone       TEXT,
                 segment     TEXT,
-                preferences TEXT,
-                notes       TEXT
+                preferences TEXT
             );
 
             CREATE TABLE IF NOT EXISTS orders (

@@ -21,6 +21,10 @@ from typing import Any
 # ── lazy singleton ──────────────────────────────────────────────────────────
 _client = None
 
+def log(msg: str):
+    """Safe logging for Memory — must use stderr, never stdout."""
+    print(msg, file=sys.stderr)
+
 
 def _get_client():
     global _client
@@ -84,6 +88,7 @@ def _get_client():
 # ── public helpers ──────────────────────────────────────────────────────────
 
 def save_memory(messages: list[dict], user_id: str, metadata: dict | None = None) -> None:
+    log(f"SAVING MEMORY {messages}")
     """
     Persist a list of {role, content} messages as memories for *user_id*.
 
