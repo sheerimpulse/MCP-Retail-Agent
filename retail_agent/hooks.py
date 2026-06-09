@@ -4,8 +4,20 @@ import sys
 from typing import Any, Optional
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.tools import BaseTool
+from google.genai import types as genai_types
 
 from retail_agent.memory import save_memory, search_memory, format_memories_for_prompt
+from retail_agent.auth import (
+    validate_login,
+    parse_credentials,
+    login_prompt,
+    login_success_message,
+    login_failure_message,
+    AUTH_STATE_KEY,
+    USER_STATE_KEY,
+    ROLE_STATE_KEY,
+    PENDING_AUTH_KEY,
+)
 
 REFUND_THRESHOLD = 500.00
 
@@ -32,10 +44,71 @@ def _log(hook: str, tool: str, decision: str, reason: str) -> dict:
           file=sys.stderr)
     return entry
 
-def before_agent(callback_context: CallbackContext) -> Optional[Any]:
-    """Seed default state keys before the agent prompt is built."""
-    callback_context.state.setdefault("mem0_customer_context", "")
-    return None
+def _make_content(text: str) -> genai_types.Content:
+    """Wrap a plain string into the ADK-expected Content object."""
+    return genai_types.Content(
+        role="model",
+        parts=[genai_types.Part(text=text)],
+    )
+
+def before_agent(callback_context: CallbackContext) -> Optional[genai_types.Content]:
+    """
+    Auth gate: runs before every agent turn.
+
+    State machine:
+      - No auth state yet  → show login prompt, set pending_auth=True, block agent.
+      - pending_auth=True  → try to parse credentials from the user's message.
+                             On success → mark authenticated, let agent run.
+                             On failure → show error, keep blocking.
+      - authenticated=True → seed memory state and let the agent run normally.
+
+    Must return genai_types.Content (or None to let the agent proceed).
+    Returning a Content object short-circuits the LLM — the content is sent
+    directly as the agent reply.
+    """
+    state = callback_context.state
+
+    # ── Already authenticated: just seed memory state and proceed ──
+    if state.get(AUTH_STATE_KEY):
+        state.setdefault("mem0_customer_context", "")
+        return None
+
+    # ── First turn: not authenticated yet, not waiting for credentials ──
+    if not state.get(PENDING_AUTH_KEY):
+        state[PENDING_AUTH_KEY] = True
+        log("[Auth] No session — showing login prompt.")
+        return _make_content(login_prompt())
+
+    # ── Subsequent turns while waiting for credentials ──
+    # Pull the latest user message out of the conversation history.
+    user_message = ""
+    for event in reversed(callback_context.session.events):
+        if getattr(event, "author", None) == "user":
+            try:
+                user_message = event.content.parts[0].text or ""
+            except (AttributeError, IndexError):
+                user_message = ""
+            break
+
+    log(f"[Auth] Attempting credential parse on: {user_message!r}")
+    creds = parse_credentials(user_message)
+
+    if creds:
+        username, password = creds
+        user_record = validate_login(username, password)
+        if user_record:
+            # ── Success ──
+            state[AUTH_STATE_KEY] = True
+            state[USER_STATE_KEY] = username.lower().strip()
+            state[ROLE_STATE_KEY] = user_record["role"]
+            state[PENDING_AUTH_KEY] = False
+            state.setdefault("mem0_customer_context", "")
+            log(f"[Auth] Login success — user={username}, role={user_record['role']}")
+            return _make_content(login_success_message(user_record))
+
+    # ── Failed attempt ──
+    log(f"[Auth] Login failed for input: {user_message!r}")
+    return _make_content(login_failure_message())
 
 
 # ─────────────────────────────────────────────

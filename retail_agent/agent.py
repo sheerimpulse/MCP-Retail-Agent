@@ -6,12 +6,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from mcp import StdioServerParameters
-from retail_agent.hooks import pre_tool_use, post_tool_use,before_agent
-import debugpy
-
-debugpy.listen(("localhost", 5678))
-print("Waiting for VS Code debugger...")
-debugpy.wait_for_client()
+from retail_agent.hooks import pre_tool_use, post_tool_use, before_agent
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -24,6 +19,15 @@ MCP_SERVER_PATH = os.path.join(
 SYSTEM_PROMPT = """You are a retail customer support agent. You help operators 
 look up customers, check orders, process refunds, escalate issues, and update 
 customer profiles and preferences.
+
+CURRENT SESSION:
+  Logged-in user : {current_user}
+  Role           : {current_role}
+
+Role-based permissions:
+  - agent   : can look up customers, look up orders, escalate issues, update preferences.
+  - manager : all agent permissions + can approve refunds over $500.
+  - admin   : full access.
 
 {mem0_customer_context}
 IMPORTANT: If past memory context is present above, it may reflect more recent 
