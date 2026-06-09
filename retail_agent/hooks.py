@@ -89,30 +89,9 @@ def pre_tool_use(
                 "trace": log
             }
 
-    # # ── 4. Inject past memories before get_customer ──
-    # # We search mem0 using the customer_id (or email) the agent is about to look up
-    # # and surface any stored context into the session state so the agent can use it.
-    # if tool_name == "get_customer":
-    #     # The MCP tool typically receives either customer_id or email
-    #     lookup_key = args.get("customer_id") or args.get("email") or args.get("query", "")
-    #     if lookup_key:
-    #         memories = search_memory(
-    #             query=f"customer profile and history for {lookup_key}",
-    #             user_id=str(lookup_key),
-    #             limit=5,
-    #         )
-    #         if memories:
-    #             memory_block = format_memories_for_prompt(memories)
-    #             # Inject into session state so the LLM sees it as prior context
-    #             try:
-    #                 tool_context.state["mem0_customer_context"] = memory_block
-    #                 print(
-    #                     f"[PreToolUse] Injected {len(memories)} memories into session state "
-    #                     f"for {lookup_key}",
-    #                     file=sys.stderr,
-    #                 )
-    #             except Exception as exc:
-    #                 print(f"[PreToolUse] Could not write to session state: {exc}", file=sys.stderr)
+    # ── 4. Get Customer Clear any stale customer memory context ──
+    if tool_name == "customer_get":
+        tool_context.state["mem0_customer_context"] = ""
 
     # ── 5. Allow ──
     _log("PreToolUse", tool_name, "allowed", f"{tool_name} approved.")
