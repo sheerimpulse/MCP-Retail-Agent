@@ -201,7 +201,18 @@ def post_tool_use(
         
     if tool_name == "update_customer":
         if isinstance(tool_response, dict) and tool_response.get("status") == "success":
-            log(f'POST TOOL USE {tool_response}')
+            customer_id = str(tool_response.get("customer_id",""))
+            update_summary = tool_response.get("update_summary", "Customer profile updated.")
+            if customer_id:
+                save_memory(
+                    messages=[{"role":"user","content":update_summary}],
+                    user_id=customer_id,
+                    metadata={
+                        "source":"update_customer",
+                        "event":"profile_updated",
+                        "summary": update_summary
+                    }
+                )
 
     # ── lookup_order ──
     if tool_name == "lookup_order":
