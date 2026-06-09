@@ -32,6 +32,11 @@ def _log(hook: str, tool: str, decision: str, reason: str) -> dict:
           file=sys.stderr)
     return entry
 
+def before_agent(callback_context: CallbackContext) -> Optional[Any]:
+    """Seed default state keys before the agent prompt is built."""
+    callback_context.state.setdefault("mem0_customer_context", "")
+    return None
+
 
 # ─────────────────────────────────────────────
 # PRE TOOL USE
@@ -44,6 +49,8 @@ def pre_tool_use(
 ) -> Optional[dict]:
     tool_name = tool.name
     history = _get_history(tool_context)
+    
+    tool_context.state.setdefault("mem0_customer_context", "")
 
     # ── 1. lookup_order requires get_customer first ──
     if tool_name == "lookup_order":
@@ -82,30 +89,30 @@ def pre_tool_use(
                 "trace": log
             }
 
-    # ── 4. Inject past memories before get_customer ──
-    # We search mem0 using the customer_id (or email) the agent is about to look up
-    # and surface any stored context into the session state so the agent can use it.
-    if tool_name == "get_customer":
-        # The MCP tool typically receives either customer_id or email
-        lookup_key = args.get("customer_id") or args.get("email") or args.get("query", "")
-        if lookup_key:
-            memories = search_memory(
-                query=f"customer profile and history for {lookup_key}",
-                user_id=str(lookup_key),
-                limit=5,
-            )
-            if memories:
-                memory_block = format_memories_for_prompt(memories)
-                # Inject into session state so the LLM sees it as prior context
-                try:
-                    tool_context.state["mem0_customer_context"] = memory_block
-                    print(
-                        f"[PreToolUse] Injected {len(memories)} memories into session state "
-                        f"for {lookup_key}",
-                        file=sys.stderr,
-                    )
-                except Exception as exc:
-                    print(f"[PreToolUse] Could not write to session state: {exc}", file=sys.stderr)
+    # # ── 4. Inject past memories before get_customer ──
+    # # We search mem0 using the customer_id (or email) the agent is about to look up
+    # # and surface any stored context into the session state so the agent can use it.
+    # if tool_name == "get_customer":
+    #     # The MCP tool typically receives either customer_id or email
+    #     lookup_key = args.get("customer_id") or args.get("email") or args.get("query", "")
+    #     if lookup_key:
+    #         memories = search_memory(
+    #             query=f"customer profile and history for {lookup_key}",
+    #             user_id=str(lookup_key),
+    #             limit=5,
+    #         )
+    #         if memories:
+    #             memory_block = format_memories_for_prompt(memories)
+    #             # Inject into session state so the LLM sees it as prior context
+    #             try:
+    #                 tool_context.state["mem0_customer_context"] = memory_block
+    #                 print(
+    #                     f"[PreToolUse] Injected {len(memories)} memories into session state "
+    #                     f"for {lookup_key}",
+    #                     file=sys.stderr,
+    #                 )
+    #             except Exception as exc:
+    #                 print(f"[PreToolUse] Could not write to session state: {exc}", file=sys.stderr)
 
     # ── 5. Allow ──
     _log("PreToolUse", tool_name, "allowed", f"{tool_name} approved.")
@@ -157,9 +164,19 @@ def post_tool_use(
     if tool_name == "get_customer":
         if isinstance(tool_response, dict) and tool_response.get("status") == "success":
             customer = tool_response.get("customer", {})
+            customer_id = str(customer.get("id", ""))
+
+            # Search memories FIRST
+            memories = search_memory(
+                query=f"customer profile and history for {customer.get('email') or customer_id}",
+                user_id=customer_id,
+                limit=5,
+            )
+
+            # Build cleaned response
             cleaned = {
                 "status": "success",
-                "customer_id": customer.get("id"),
+                "customer_id": customer_id,
                 "name": customer.get("name"),
                 "email": customer.get("email"),
                 "phone": customer.get("phone"),
@@ -167,38 +184,28 @@ def post_tool_use(
                 "preferences": customer.get("preferences", {}),
                 "support_history": customer.get("support_history", []),
                 "safe_for_customer": True,
-                "summary": (
+            }
+
+            # Inject memories AND add a conflict note if preferences differ
+            if memories:
+                memory_block = format_memories_for_prompt(memories)
+                tool_context.state["mem0_customer_context"] = memory_block
+
+                # Surface the delta explicitly so the agent can't miss it
+                cleaned["memory_context"] = memory_block
+                cleaned["summary"] = (
+                    f"{customer.get('name')} is a {customer.get('segment', 'regular')} customer. "
+                    f"NOTE: Past memory may reflect more recent preference updates — "
+                    f"see memory_context field."
+                )
+            else:
+                cleaned["summary"] = (
                     f"{customer.get('name')} is a {customer.get('segment', 'regular')} customer. "
                     f"Contact preference: {customer.get('preferences', {}).get('contact', 'email')}."
                 )
-            }
-            print(f"[PostToolUse] get_customer → cleaned profile for {customer.get('name')}",
-                  file=sys.stderr)
-
-            # ── mem0: save customer profile facts ──
-            customer_id = str(customer.get("id", ""))
-            if customer_id:
-                mem_facts = [
-                    f"Customer name: {customer.get('name')}",
-                    f"Segment: {customer.get('segment', 'regular')}",
-                    f"Contact preference: {customer.get('preferences', {}).get('contact', 'email')}",
-                    f"Email: {customer.get('email')}",
-                    f"Phone: {customer.get('phone')}",
-                ]
-                support_history = customer.get("support_history", [])
-                if support_history:
-                    mem_facts.append(
-                        f"Support history: {json.dumps(support_history)}"
-                    )
-
-                save_memory(
-                    messages=[{"role": "user", "content": " | ".join(mem_facts)}],
-                    user_id=customer_id,
-                    metadata={"source": "get_customer", "event": "profile_loaded"},
-                )
 
             return cleaned
-        
+            
     if tool_name == "update_customer":
         if isinstance(tool_response, dict) and tool_response.get("status") == "success":
             customer_id = str(tool_response.get("customer_id",""))

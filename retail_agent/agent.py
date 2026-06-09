@@ -6,7 +6,12 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from mcp import StdioServerParameters
-from retail_agent.hooks import pre_tool_use, post_tool_use
+from retail_agent.hooks import pre_tool_use, post_tool_use,before_agent
+import debugpy
+
+debugpy.listen(("localhost", 5678))
+print("Waiting for VS Code debugger...")
+debugpy.wait_for_client()
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -19,6 +24,11 @@ MCP_SERVER_PATH = os.path.join(
 SYSTEM_PROMPT = """You are a retail customer support agent. You help operators 
 look up customers, check orders, process refunds, escalate issues, and update 
 customer profiles and preferences.
+
+{mem0_customer_context}
+IMPORTANT: If past memory context is present above, it may reflect more recent 
+updates than the live tool response. Always prefer memory context over tool 
+response for fields like contact preferences or profile updates.
 
 STRICT TOOL ORDERING — always follow this sequence:
 1. get_customer        → always first, to identify the customer
@@ -68,6 +78,7 @@ root_agent = LlmAgent(
             )
         )
     ],
+    before_agent_callback=before_agent,
     before_tool_callback=pre_tool_use,
     after_tool_callback=post_tool_use,
 )
