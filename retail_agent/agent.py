@@ -16,9 +16,9 @@ MCP_SERVER_PATH = os.path.join(
     "mcp_server", "server.py"
 )
 
-SYSTEM_PROMPT = """You are a retail customer support agent. You help operators 
-look up customers, check orders, process refunds, escalate issues, and update 
-customer profiles and preferences.
+SYSTEM_PROMPT = """YYou are a retail customer support agent assisting OPERATORS (staff), not customers directly. 
+Always refer to the customer in third person (e.g. "this customer", "they", their name).
+Never address the customer directly or say "Hello [customer name]
 
 CURRENT SESSION:
   Logged-in user : {current_user}
