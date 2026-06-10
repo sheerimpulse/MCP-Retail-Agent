@@ -54,30 +54,49 @@ async def chat(request: Request):
     reply = ""
     tool_trace = []
     stop_reason = "end_turn"
+    memory_context = ""
+    customer_profile = {}
+    
+    for event in events_out:
+        print(f"EVENT TYPE: {type(event).__name__}")
+        print(f"EVENT ATTRS: {[a for a in dir(event) if not a.startswith('_')]}")
+        if hasattr(event, 'content') and event.content:
+            print(f"CONTENT PARTS: {event.content.parts}")
+        break  # just first event for now
 
     for event in events_out:
-        # Agent text response
         if hasattr(event, "content") and event.content:
             for part in event.content.parts or []:
                 if hasattr(part, "text") and part.text:
                     reply += part.text
 
-        # Tool calls — build trace entries
-        if hasattr(event, "tool_call"):
-            tc = event.tool_call
-            tool_trace.append({
-                "tool": tc.name,
-                "args": tc.args,
-                "type": "call"
-            })
-        if hasattr(event, "tool_response"):
-            tr = event.tool_response
-            tool_trace.append({
-                "tool": tr.name,
-                "result": tr.result,
-                "type": "response"
-            })
+                if hasattr(part, "function_call") and part.function_call:
+                    fc = part.function_call
+                    tool_trace.append({
+                        "tool": fc.name,
+                        "args": dict(fc.args) if fc.args else {},
+                        "type": "call"
+                    })
 
+                if hasattr(part, "function_response") and part.function_response:
+                    fr = part.function_response
+                    raw = fr.response if fr.response else {}
+                    # ADK wraps MCP responses as {"content": [{"text": "..."}]}
+                    if isinstance(raw, dict) and "content" in raw:
+                        try:
+                            raw = json.loads(raw["content"][0]["text"])
+                        except:
+                            pass
+                    tool_trace.append({
+                        "tool": fr.name,
+                        "result": raw,
+                        "type": "response"
+                    })
+                    if isinstance(raw, dict):
+                        if raw.get("status") == "success" and "name" in raw:
+                            customer_profile = raw
+                        if "memory_context" in raw:
+                            memory_context = raw["memory_context"]                            
     # Pull stop_reason from reply text if present
     import re
     m = re.search(r'\[stop_reason:\s*(\w+)\]', reply)
@@ -89,6 +108,8 @@ async def chat(request: Request):
         "tool_trace": tool_trace,
         "stop_reason": stop_reason,
         "session_id": browser_id,
+        "memory_context": memory_context,
+        "customer_profile": customer_profile,
     }
 
 

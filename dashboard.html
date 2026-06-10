@@ -1,255 +1,546 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<title>Retail Support Dashboard</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
-  header { background: #1e293b; padding: 12px 20px; font-size: 18px; font-weight: 600; border-bottom: 1px solid #334155; }
-  .layout { display: grid; grid-template-columns: 280px 1fr 300px; flex: 1; overflow: hidden; }
+  <meta charset="UTF-8" />
+  <title>Retail Support Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  /* Left panel */
-  .panel { background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
-  .panel-title { padding: 12px 16px; font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #334155; }
-  .search-box { padding: 12px; border-bottom: 1px solid #334155; }
-  .search-box input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px 10px; color: #e2e8f0; font-size: 14px; }
-  .customer-list { overflow-y: auto; flex: 1; }
-  .customer-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1e293b; }
-  .customer-item:hover, .customer-item.active { background: #334155; }
-  .customer-item .name { font-weight: 500; font-size: 14px; }
-  .customer-item .meta { font-size: 12px; color: #64748b; margin-top: 2px; }
-  .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-  .badge-vip { background: #7c3aed22; color: #a78bfa; }
-  .badge-standard { background: #0ea5e922; color: #38bdf8; }
-  .badge-premium { background: #d97706; color: #fde68a; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-  /* Center panel */
-  .chat-panel { display: flex; flex-direction: column; overflow: hidden; }
-  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
-  .msg.user { background: #1d4ed8; align-self: flex-end; border-bottom-right-radius: 3px; }
-  .msg.agent { background: #1e293b; align-self: flex-start; border-bottom-left-radius: 3px; border: 1px solid #334155; }
-  .msg.system { background: #0f172a; color: #64748b; font-size: 12px; align-self: center; border: 1px solid #334155; border-radius: 6px; }
-  .trace-block { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: monospace; align-self: stretch; margin: 4px 0; }
-  .trace-block .trace-title { color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
-  .trace-entry { padding: 4px 0; border-bottom: 1px solid #1e293b; }
-  .trace-entry:last-child { border: none; }
-  .decision-allowed { color: #34d399; }
-  .decision-blocked { color: #f87171; }
-  .decision-escalated { color: #fbbf24; }
-  .stop-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-top: 6px; }
-  .stop-end_turn { background: #14532d; color: #86efac; }
-  .stop-blocked_by_policy { background: #450a0a; color: #fca5a5; }
-  .stop-escalated_to_human { background: #451a03; color: #fdba74; }
-  .stop-needs_clarification { background: #1e3a5f; color: #93c5fd; }
-  .chat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #334155; background: #1e293b; }
-  .chat-input input { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; color: #e2e8f0; font-size: 14px; }
-  .chat-input button { background: #1d4ed8; color: white; border: none; border-radius: 6px; padding: 10px 18px; cursor: pointer; font-size: 14px; font-weight: 500; }
-  .chat-input button:disabled { opacity: .4; cursor: not-allowed; }
+    header {
+      background: #1e293b;
+      padding: 12px 20px;
+      font-size: 18px;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+    }
 
-  /* Right panel */
-  .right-panel { border-left: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
-  .profile-section { padding: 16px; border-bottom: 1px solid #334155; overflow-y: auto; flex: 1; }
-  .profile-section h3 { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
-  .profile-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #1e293b; }
-  .profile-row .label { color: #64748b; }
-  .memory-block { background: #0f172a; border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 12px; font-family: monospace; color: #a5b4fc; max-height: 200px; overflow-y: auto; }
-  .empty-state { color: #475569; font-size: 13px; padding: 20px; text-align: center; }
-  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #334155; border-top-color: #60a5fa; border-radius: 50%; animation: spin .6s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 300px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left panel */
+    .panel {
+      background: #1e293b;
+      border-right: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border-bottom: 1px solid #334155;
+    }
+
+    .search-box {
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+
+    .customer-list {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .customer-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .customer-item:hover,
+    .customer-item.active {
+      background: #334155;
+    }
+
+    .customer-item .name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .customer-item .meta {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-vip {
+      background: #7c3aed22;
+      color: #a78bfa;
+    }
+
+    .badge-standard {
+      background: #0ea5e922;
+      color: #38bdf8;
+    }
+
+    .badge-premium {
+      background: #d97706;
+      color: #fde68a;
+    }
+
+    /* Center panel */
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .msg.user {
+      background: #1d4ed8;
+      align-self: flex-end;
+      border-bottom-right-radius: 3px;
+    }
+
+    .msg.agent {
+      background: #1e293b;
+      align-self: flex-start;
+      border-bottom-left-radius: 3px;
+      border: 1px solid #334155;
+    }
+
+    .msg.system {
+      background: #0f172a;
+      color: #64748b;
+      font-size: 12px;
+      align-self: center;
+      border: 1px solid #334155;
+      border-radius: 6px;
+    }
+
+    .trace-block {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-family: monospace;
+      align-self: stretch;
+      margin: 4px 0;
+    }
+
+    .trace-block .trace-title {
+      color: #94a3b8;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .trace-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .trace-entry:last-child {
+      border: none;
+    }
+
+    .decision-allowed {
+      color: #34d399;
+    }
+
+    .decision-blocked {
+      color: #f87171;
+    }
+
+    .decision-escalated {
+      color: #fbbf24;
+    }
+
+    .stop-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .stop-end_turn {
+      background: #14532d;
+      color: #86efac;
+    }
+
+    .stop-blocked_by_policy {
+      background: #450a0a;
+      color: #fca5a5;
+    }
+
+    .stop-escalated_to_human {
+      background: #451a03;
+      color: #fdba74;
+    }
+
+    .stop-needs_clarification {
+      background: #1e3a5f;
+      color: #93c5fd;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid #334155;
+      background: #1e293b;
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+
+    .chat-input button {
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .chat-input button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    /* Right panel */
+    .right-panel {
+      border-left: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .profile-section {
+      padding: 16px;
+      border-bottom: 1px solid #334155;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .profile-section h3 {
+      font-size: 13px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 10px;
+    }
+
+    .profile-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .profile-row .label {
+      color: #64748b;
+    }
+
+    .memory-block {
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      color: #a5b4fc;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .empty-state {
+      color: #475569;
+      font-size: 13px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #334155;
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
 </head>
+
 <body>
-<header>🛒 Retail Support Dashboard</header>
-<div class="layout">
+  <header>🛒 Retail Support Dashboard</header>
+  <div class="layout">
 
-  <!-- LEFT: Customer list -->
-  <div class="panel">
-    <div class="panel-title">Customers</div>
-    <div class="search-box">
-      <input id="search" placeholder="Search by name, email, phone…" oninput="filterCustomers(this.value)" />
+    <!-- LEFT: Customer list -->
+    <div class="panel">
+      <div class="panel-title">Customers</div>
+      <div class="search-box">
+        <input id="search" placeholder="Search by name, email, phone…" oninput="filterCustomers(this.value)" />
+      </div>
+      <div class="customer-list" id="customerList"></div>
     </div>
-    <div class="customer-list" id="customerList"></div>
+
+    <!-- CENTER: Chat -->
+    <div class="chat-panel">
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg system">Select a customer and log in to begin.</div>
+      </div>
+      <div class="chat-input">
+        <input id="msgInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendMessage()" disabled />
+        <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Profile + memory -->
+    <div class="right-panel">
+      <div class="panel-title">Customer Profile</div>
+      <div class="profile-section" id="profilePanel">
+        <div class="empty-state">No customer selected</div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- CENTER: Chat -->
-  <div class="chat-panel">
-    <div class="chat-messages" id="chatMessages">
-      <div class="msg system">Select a customer and log in to begin.</div>
-    </div>
-    <div class="chat-input">
-      <input id="msgInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendMessage()" disabled />
-      <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
-    </div>
-  </div>
+  <script>
+    const API = "http://localhost:8000";
+    let sessionId = crypto.randomUUID();
+    let activeCustomer = null;
+    let allCustomers = [];
 
-  <!-- RIGHT: Profile + memory -->
-  <div class="right-panel">
-    <div class="panel-title">Customer Profile</div>
-    <div class="profile-section" id="profilePanel">
-      <div class="empty-state">No customer selected</div>
-    </div>
-  </div>
+    async function init() {
+      const res = await fetch(`${API}/customers`);
+      allCustomers = await res.json();
+      renderCustomers(allCustomers);
+    }
 
-</div>
-
-<script>
-const API = "http://localhost:8000";
-let sessionId = crypto.randomUUID();
-let activeCustomer = null;
-let allCustomers = [];
-
-async function init() {
-  const res = await fetch(`${API}/customers`);
-  allCustomers = await res.json();
-  renderCustomers(allCustomers);
-}
-
-function renderCustomers(list) {
-  const el = document.getElementById("customerList");
-  el.innerHTML = list.map(c => `
-    <div class="customer-item ${activeCustomer?.id===c.id?'active':''}" onclick="selectCustomer(${c.id})">
+    function renderCustomers(list) {
+      const el = document.getElementById("customerList");
+      el.innerHTML = list.map(c => `
+    <div class="customer-item ${activeCustomer?.id === c.id ? 'active' : ''}" onclick="selectCustomer(${c.id})">
       <div class="name">${c.name} <span class="badge badge-${c.segment}">${c.segment}</span></div>
       <div class="meta">${c.email}</div>
     </div>
   `).join("");
-}
+    }
 
-function filterCustomers(q) {
-  const filtered = allCustomers.filter(c =>
-    c.name.toLowerCase().includes(q.toLowerCase()) ||
-    c.email.toLowerCase().includes(q.toLowerCase()) ||
-    c.phone.includes(q)
-  );
-  renderCustomers(filtered);
-}
+    function filterCustomers(q) {
+      const filtered = allCustomers.filter(c =>
+        c.name.toLowerCase().includes(q.toLowerCase()) ||
+        c.email.toLowerCase().includes(q.toLowerCase()) ||
+        c.phone.includes(q)
+      );
+      renderCustomers(filtered);
+    }
 
-async function selectCustomer(id) {
-  const c = allCustomers.find(x => x.id === id);
-  activeCustomer = c;
-  renderCustomers(allCustomers);
+    async function selectCustomer(id) {
+      const c = allCustomers.find(x => x.id === id);
+      activeCustomer = c;
+      renderCustomers(allCustomers);
 
-  // Reset session for new customer
-  await fetch(`${API}/session/${sessionId}`, { method: "DELETE" });
+      // Reset session for new customer
+      await fetch(`${API}/session/${sessionId}`, { method: "DELETE" });
 
-  // Show profile
-  document.getElementById("profilePanel").innerHTML = `
+      // Show profile
+      document.getElementById("profilePanel").innerHTML = `
     <h3>Profile</h3>
     <div class="profile-row"><span class="label">Name</span><span>${c.name}</span></div>
     <div class="profile-row"><span class="label">Email</span><span>${c.email}</span></div>
     <div class="profile-row"><span class="label">Phone</span><span>${c.phone}</span></div>
     <div class="profile-row"><span class="label">Segment</span><span class="badge badge-${c.segment}">${c.segment}</span></div>
-    <h3 style="margin-top:16px">Memory</h3>
-    <div class="memory-block" id="memoryBlock">Memory will appear after first tool call…</div>
   `;
 
-  // Enable chat
-  document.getElementById("msgInput").disabled = false;
-  document.getElementById("sendBtn").disabled = false;
+      // Enable chat
+      document.getElementById("msgInput").disabled = false;
+      document.getElementById("sendBtn").disabled = false;
 
-  // Clear chat and show login prompt
-  const chat = document.getElementById("chatMessages");
-  chat.innerHTML = "";
-  appendMessage("system", `Selected: ${c.name} (${c.segment}). Log in to continue.`);
+      // Clear chat and show login prompt
+      const chat = document.getElementById("chatMessages");
+      chat.innerHTML = "";
+      appendMessage("system", `Selected: ${c.name} (${c.segment}). Log in to continue.`);
 
-  // Auto-send a message that triggers login — agent will respond with login prompt
-  await sendRaw(`You are assisting a support operator. The operator has selected customer: ${c.name} (email: ${c.email}, phone: ${c.phone}). Acknowledge that you are ready to help the operator with this customer's account.`);
-}
-
-async function sendMessage() {
-  const input = document.getElementById("msgInput");
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = "";
-  appendMessage("user", text);
-  await sendRaw(text);
-}
-
-async function sendRaw(text) {
-  const btn = document.getElementById("sendBtn");
-  btn.disabled = true;
-  const loadingId = appendMessage("system", "⠋ Thinking…");
-
-  try {
-    const res = await fetch(`${API}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId })
-    });
-    const data = await res.json();
-
-    // Remove loading
-    document.getElementById(loadingId)?.remove();
-
-    // Show tool trace if any
-    if (data.tool_trace?.length) {
-      appendTrace(data.tool_trace, data.stop_reason);
+      // Auto-send a message that triggers login — agent will respond with login prompt
+      await sendRaw(`You are assisting a support operator. The operator has selected customer: ${c.name} (email: ${c.email}, phone: ${c.phone}). Acknowledge that you are ready to help the operator with this customer's account.`);
     }
 
-    // Show reply
-    appendMessage("agent", data.reply);
+    async function sendMessage() {
+      const input = document.getElementById("msgInput");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      appendMessage("user", text);
+      await sendRaw(text);
+    }
 
-    // Update memory panel if present
-    if (data.reply.includes("Past customer context")) {
-      const memEl = document.getElementById("memoryBlock");
-      if (memEl) {
-        const match = data.reply.match(/=== Past customer context[\s\S]*?==========+/);
-        if (match) memEl.textContent = match[0];
+    async function sendRaw(text) {
+      const btn = document.getElementById("sendBtn");
+      btn.disabled = true;
+      const loadingId = appendMessage("system", "⠋ Thinking…");
+
+      try {
+        const res = await fetch(`${API}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, session_id: sessionId })
+        });
+        const data = await res.json();
+
+        // Remove loading
+        document.getElementById(loadingId)?.remove();
+
+        // Show tool trace if any
+        if (data.tool_trace?.length) {
+          appendTrace(data.tool_trace, data.stop_reason);
+        }
+
+        // Show reply
+        appendMessage("agent", data.reply);
+
+        // Also update profile if we got customer data back
+        if (data.customer_profile && data.customer_profile.name) {
+          const p = data.customer_profile;
+          const prefs = p.preferences || {};
+          document.getElementById("profilePanel").innerHTML = `
+        <h3>Profile</h3>
+        <div class="profile-row"><span class="label">Name</span><span>${p.name}</span></div>
+        <div class="profile-row"><span class="label">Email</span><span>${p.email || "—"}</span></div>
+        <div class="profile-row"><span class="label">Phone</span><span>${p.phone || "—"}</span></div>
+        <div class="profile-row"><span class="label">Segment</span><span class="badge badge-${p.segment || 'standard'}">${p.segment || "—"}</span></div>
+        <div class="profile-row"><span class="label">Contact pref</span><span>${prefs.contact || "—"}</span></div>
+        <div class="profile-row"><span class="label">Language</span><span>${prefs.language || "—"}</span></div>
+        <h3 style="margin-top:16px">Support History</h3>
+        ${(p.support_history || []).map(h => `
+            <div style="font-size:12px; padding:4px 0; border-bottom:1px solid #1e293b; color:#94a3b8">
+                <div>${h.issue}</div>
+                <div style="color:#64748b">${h.resolution || ""} · ${h.created_at || ""}</div>
+            </div>
+        `).join("") || '<div class="empty-state">No support history</div>'}
+    `;
+        }
+
+      } catch (e) {
+        document.getElementById(loadingId)?.remove();
+        appendMessage("system", "❌ Error: " + e.message);
+      } finally {
+        btn.disabled = false;
       }
     }
 
-  } catch(e) {
-    document.getElementById(loadingId)?.remove();
-    appendMessage("system", "❌ Error: " + e.message);
-  } finally {
-    btn.disabled = false;
-  }
-}
+    function appendMessage(type, text) {
+      const chat = document.getElementById("chatMessages");
+      const id = "msg-" + Date.now() + Math.random();
+      const div = document.createElement("div");
+      div.className = `msg ${type}`;
+      div.id = id;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return id;
+    }
 
-function appendMessage(type, text) {
-  const chat = document.getElementById("chatMessages");
-  const id = "msg-" + Date.now() + Math.random();
-  const div = document.createElement("div");
-  div.className = `msg ${type}`;
-  div.id = id;
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return id;
-}
+    function appendTrace(trace, stopReason) {
+      const chat = document.getElementById("chatMessages");
+      const div = document.createElement("div");
+      div.className = "trace-block";
 
-function appendTrace(trace, stopReason) {
-  const chat = document.getElementById("chatMessages");
-  const div = document.createElement("div");
-  div.className = "trace-block";
-
-  let html = `<div class="trace-title">🔍 Execution Trace</div>`;
-  for (const entry of trace) {
-    if (entry.type === "call") {
-      html += `<div class="trace-entry">
+      let html = `<div class="trace-title">🔍 Execution Trace</div>`;
+      for (const entry of trace) {
+        if (entry.type === "call") {
+          html += `<div class="trace-entry">
         <span style="color:#60a5fa">→ ${entry.tool}</span>
         <span style="color:#64748b; font-size:11px"> args: ${JSON.stringify(entry.args)}</span>
       </div>`;
-    } else if (entry.type === "response") {
-      const result = typeof entry.result === "string" ? entry.result : JSON.stringify(entry.result);
-      const isBlocked = result.includes("blocked") || result.includes("hook_decision");
-      html += `<div class="trace-entry ${isBlocked ? 'decision-blocked' : 'decision-allowed'}">
+        } else if (entry.type === "response") {
+          const result = typeof entry.result === "string" ? entry.result : JSON.stringify(entry.result);
+          const isBlocked = result.includes("blocked") || result.includes("hook_decision");
+          html += `<div class="trace-entry ${isBlocked ? 'decision-blocked' : 'decision-allowed'}">
         ← ${entry.tool}: ${result.slice(0, 120)}${result.length > 120 ? "…" : ""}
       </div>`;
+        }
+      }
+
+      if (stopReason) {
+        html += `<div style="margin-top:6px"><span class="stop-badge stop-${stopReason}">${stopReason}</span></div>`;
+      }
+
+      div.innerHTML = html;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
     }
-  }
 
-  if (stopReason) {
-    html += `<div style="margin-top:6px"><span class="stop-badge stop-${stopReason}">${stopReason}</span></div>`;
-  }
-
-  div.innerHTML = html;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-init();
-</script>
+    init();
+  </script>
 </body>
+
 </html>

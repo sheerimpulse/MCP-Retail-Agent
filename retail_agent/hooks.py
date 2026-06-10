@@ -228,7 +228,7 @@ def post_tool_use(
             # Build cleaned response
             cleaned = {
                 "status": "success",
-                "customer_id": customer_id,
+                "customer_id": int(customer_id) if customer_id else None,
                 "name": customer.get("name"),
                 "email": customer.get("email"),
                 "phone": customer.get("phone"),
