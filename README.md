@@ -106,8 +106,8 @@ The agent process spawns the MCP server as a **subprocess** and communicates ove
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/sheerimpulse/MCP-Retail-Agent.git
+cd MCP-Retail-Agent
 
 # 2. Create and activate a virtual environment
 python -m venv venv
