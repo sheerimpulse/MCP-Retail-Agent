@@ -8,7 +8,7 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from mcp import StdioServerParameters
 from retail_agent.hooks import pre_tool_use, post_tool_use, before_agent
 
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv()
 
 # Absolute path to the MCP server script
 MCP_SERVER_PATH = os.path.join(
