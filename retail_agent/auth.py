@@ -19,6 +19,11 @@ def _h(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
 
 MOCK_USERS: dict[str, dict] = {
+    "demo@traversaal.ai": {
+        "password_hash": _h("demo123"),
+        "role": "admin",
+        "display_name": "Traversaal (Admin)"  
+    },
     "alice": {
         "password_hash": _h("alice123"),
         "role": "agent",
@@ -61,9 +66,9 @@ def parse_credentials(text: str) -> tuple[str, str] | None:
     Extract username / password from a free-text message.
 
     Accepted formats (all case-insensitive):
-        username: alice  password: alice123
-        user: alice  pass: alice123
-        alice alice123          <- bare "<user> <pass>" fallback
+        username: demo@traversaal.ai  password: demo123
+        user: demo@traversaal.ai  pass: demo123
+        demo@traversaal.ai demo123          <- bare "<user> <pass>" fallback
     """
     # Named format: username/user + password/pass/pw
     m = re.search(
@@ -88,7 +93,7 @@ def login_prompt() -> str:
         "🔐 **Retail Support Agent — Login Required**\n\n"
         "Please provide your credentials to continue.\n\n"
         "**Format:** `username: <user>  password: <pass>`\n\n"
-        "_Example:_ `username: alice  password: alice123`"
+        "_Example:_ `username: demo@traversaal.ai  password: demo123`"
     )
 
 
